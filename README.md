@@ -12,12 +12,12 @@
     
 3. 在config目录下配置config.yml文件，配置openai的api和电报机器人的api
 
-> 如果需要配置mogo的用户名和密码，进入config文件夹下的config.env
+> 如果需要配置mogo的用户名和密码，进入config文件夹下编辑config.env文件，
 通过http://服务器ip地址:8888端口 访问mongo数据库的后台。
 
-在这里存储了不同用户的数据。
+[!done] 在这里存储了不同用户的数据。
 
-4. 
+
 ## 通过Docker构建镜像
     ```bash
     docker-compose --env-file config/config.env up --build

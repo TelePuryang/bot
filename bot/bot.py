@@ -39,12 +39,12 @@ db = database.Database()
 logger = logging.getLogger(__name__)
 user_semaphores = {}
 
-HELP_MESSAGE = """Commands:
-⚪ /retry – Regenerate last bot answer
-⚪ /new – Start new dialog
-⚪ /mode – Select chat mode
-⚪ /balance – Show balance
-⚪ /help – Show help
+HELP_MESSAGE = """告诉我我要干嘛：
+⚪ /retry – 重新生成上一个回答
+⚪ /new – 我要开始新对话
+⚪ /mode – 我要你更专注于
+⚪ /balance – 看看翼臣哥哥的钱包
+⚪ /help – 我需要帮助
 """
 
 
@@ -299,7 +299,7 @@ async def show_chat_modes_handle(update: Update, context: CallbackContext):
         keyboard.append([InlineKeyboardButton(chat_mode_dict["name"], callback_data=f"set_chat_mode|{chat_mode}")])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("Select chat mode:", reply_markup=reply_markup)
+    await update.message.reply_text("选择更让我专注的模式吧", reply_markup=reply_markup)
 
 
 async def set_chat_mode_handle(update: Update, context: CallbackContext):
@@ -328,10 +328,10 @@ async def show_balance_handle(update: Update, context: CallbackContext):
     price_per_1000_tokens = config.chatgpt_price_per_1000_tokens if config.use_chatgpt_api else config.gpt_price_per_1000_tokens
     n_spent_dollars = n_used_tokens * (price_per_1000_tokens / 1000)
 
-    text = f"You spent <b>{n_spent_dollars:.03f}$</b>\n"
-    text += f"You used <b>{n_used_tokens}</b> tokens\n\n"
+    text = f"翼臣哥哥花费了 <b>{n_spent_dollars:.03f}$</b>\n"
+    text += f"总共使用了 <b>{n_used_tokens}</b> tokens\n\n"
 
-    text += "🏷️ Prices\n"
+    text += "🏷️ 这是官方API价格,我也要成本的！！！\n"
     text += f"<i>- ChatGPT: {price_per_1000_tokens}$ per 1000 tokens\n"
     text += f"- Whisper (voice recognition): {config.whisper_price_per_1_min}$ per 1 minute</i>"
 
@@ -370,11 +370,11 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
 
 async def post_init(application: Application):
     await application.bot.set_my_commands([
-        BotCommand("/new", "Start new dialog"),
-        BotCommand("/mode", "Select chat mode"),
-        BotCommand("/retry", "Re-generate response for previous query"),
-        BotCommand("/balance", "Show balance"),
-        BotCommand("/help", "Show help message"),
+        BotCommand("/new", "我要开始新对话"),
+        BotCommand("/mode", "我要你更专注"),
+        BotCommand("/retry", "重新回答这个问题"),
+        BotCommand("/balance", "看看翼臣哥哥的钱包"),
+        BotCommand("/help", "我需要帮助"),
     ])
 
 def run_bot() -> None:

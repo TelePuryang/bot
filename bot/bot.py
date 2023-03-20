@@ -214,10 +214,10 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 dialog_id=None
             )
 
-          #自动补全文本进行流式传输时出现错误提示用户
+          #进行流式传输时未得到回复出现错误提示用户
             db.set_user_attribute(user_id, "n_used_tokens", n_used_tokens + db.get_user_attribute(user_id, "n_used_tokens"))
         except Exception as e:
-            error_text = f"自动补全token时过程中出现错误,原因: {e}"
+            error_text = f"你还没有回复上条消息呢,原因: {e}"
             logger.error(error_text)
             await update.message.reply_text(error_text)
             return
@@ -233,73 +233,20 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
         #当信息从文本移除时发送提示消息给用户告知对方第一条消息被移除
 
 
-#新添内容
-#
-import logging
-import threading
-import time
 
-from telegram import Update
-from telegram.ext import CallbackContext
-
-user_semaphores = {}
-logger = logging.getLogger(__name__)
-#
-async def register_user_if_not_exists(update: Update, context: CallbackContext):
-    user_id = update.message.from_user.id
-    if user_id not in user_semaphores:
-        user_semaphores[user_id] = threading.Lock()
-
-async def is_previous_message_not_answered_yet(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context,update.message.from_user)
-
-    user_id = update.message.from_user.id
-    if user_semaphores[user_id].locked():
-        text = "⏳ 请<b>等待</b> 我响应完这条信息。"
-        await update.message.reply_text(text, reply_to_message_id=update.message.id, parse_mode="HTML")
-        return True
-    else:
-        return False
-    
 #当用户发送的消息未得到相应时回复
 #如果该用户的信号量已经被锁定（即在先前的消息尚未被响应之前），则该函数将向用户发送一条提示消息，并返回True。 否则，函数将返回False，表示该用户可以发送一条新消息。
-# async def is_previous_message_not_answered_yet(update: Update, context: CallbackContext):
-#     await register_user_if_not_exists(update, context, update.message.from_user)
+async def is_previous_message_not_answered_yet(update: Update, context: CallbackContext):
+    await register_user_if_not_exists(update, context, update.message.from_user)
 
-#     user_id = update.message.from_user.id
-#     if user_semaphores[user_id].locked():
-#         text = "⏳ 请<b>等待</b> 我响应完这条信息。"
-#         await update.message.reply_text(text, reply_to_message_id=update.message.id, parse_mode=ParseMode.HTML)
-#         return True
-#     else:
-#         return False
+     user_id = update.message.from_user.id
+     if user_semaphores[user_id].locked():
+         text = "⏳ 请<b>等待</b> 我响应完这条信息。"
+         await update.message.reply_text(text, reply_to_message_id=update.message.id, parse_mode=ParseMode.HTML)
+         return True
+     else:
+         return False
 #当用户发送的消息未得到相应时回复
-
-async def some_handler_function(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context,update.message.from_user)
-    is_waiting = await is_previous_message_not_answered_yet(update, context,update.message.from_user)
-    if is_waiting:
-        # 继续等待
-        pass
-    else:
-        # 处理新消息
-        user_id = update.message.from_user.id
-        try:
-            user_semaphores[user_id].acquire()
-            # 执行一些需要并发控制的操作
-            time.sleep(5)
-        except Exception as e:
-            error_text = f"处理消息时出现错误，原因: {e}"
-            logger.error(error_text)
-            await update.message.reply_text(error_text)
-        finally:
-            user_semaphores[user_id].release()
-
-#新添内容
-
-
-
-
 
 
 #声音消息处理
@@ -346,7 +293,7 @@ async def voice_message_handle(update: Update, context: CallbackContext):
 
 #启动新对话、获取用户名、使用的聊天模式
 async def new_dialog_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context,update.message.from_user)
+    await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
 
     user_id = update.message.from_user.id

@@ -234,6 +234,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
 
 #新添内容
+#
 import logging
 import threading
 import time
@@ -243,14 +244,14 @@ from telegram.ext import CallbackContext
 
 user_semaphores = {}
 logger = logging.getLogger(__name__)
-
+#
 async def register_user_if_not_exists(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
     if user_id not in user_semaphores:
         user_semaphores[user_id] = threading.Lock()
 
 async def is_previous_message_not_answered_yet(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context)
+    await register_user_if_not_exists(update, context,update.message.from_user)
 
     user_id = update.message.from_user.id
     if user_semaphores[user_id].locked():
@@ -259,10 +260,24 @@ async def is_previous_message_not_answered_yet(update: Update, context: Callback
         return True
     else:
         return False
+    
+#当用户发送的消息未得到相应时回复
+#如果该用户的信号量已经被锁定（即在先前的消息尚未被响应之前），则该函数将向用户发送一条提示消息，并返回True。 否则，函数将返回False，表示该用户可以发送一条新消息。
+# async def is_previous_message_not_answered_yet(update: Update, context: CallbackContext):
+#     await register_user_if_not_exists(update, context, update.message.from_user)
+
+#     user_id = update.message.from_user.id
+#     if user_semaphores[user_id].locked():
+#         text = "⏳ 请<b>等待</b> 我响应完这条信息。"
+#         await update.message.reply_text(text, reply_to_message_id=update.message.id, parse_mode=ParseMode.HTML)
+#         return True
+#     else:
+#         return False
+#当用户发送的消息未得到相应时回复
 
 async def some_handler_function(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context)
-    is_waiting = await is_previous_message_not_answered_yet(update, context)
+    await register_user_if_not_exists(update, context,update.message.from_user)
+    is_waiting = await is_previous_message_not_answered_yet(update, context,update.message.from_user)
     if is_waiting:
         # 继续等待
         pass
@@ -284,19 +299,7 @@ async def some_handler_function(update: Update, context: CallbackContext):
 
 
 
-#当用户发送的消息未得到相应时回复
-#如果该用户的信号量已经被锁定（即在先前的消息尚未被响应之前），则该函数将向用户发送一条提示消息，并返回True。 否则，函数将返回False，表示该用户可以发送一条新消息。
-# async def is_previous_message_not_answered_yet(update: Update, context: CallbackContext):
-#     await register_user_if_not_exists(update, context, update.message.from_user)
 
-#     user_id = update.message.from_user.id
-#     if user_semaphores[user_id].locked():
-#         text = "⏳ 请<b>等待</b> 我响应完这条信息。"
-#         await update.message.reply_text(text, reply_to_message_id=update.message.id, parse_mode=ParseMode.HTML)
-#         return True
-#     else:
-#         return False
-#当用户发送的消息未得到相应时回复
 
 
 #声音消息处理

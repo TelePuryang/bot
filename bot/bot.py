@@ -239,13 +239,14 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 async def is_previous_message_not_answered_yet(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
 
-     user_id = update.message.from_user.id
-     if user_semaphores[user_id].locked():
-         text = "⏳ 请<b>等待</b> 我响应完这条信息。"
-         await update.message.reply_text(text, reply_to_message_id=update.message.id, parse_mode=ParseMode.HTML)
-         return True
-     else:
-         return False
+    user_id = update.message.from_user.id
+    if user_semaphores[user_id].locked():
+        text = "⏳ 请<b>等待</b> 一个当前信息的回复"
+        await update.message.reply_text(text, reply_to_message_id=update.message.id, parse_mode=ParseMode.HTML)
+        return True
+    else:
+        return False
+
 #当用户发送的消息未得到相应时回复
 
 

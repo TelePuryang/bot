@@ -346,7 +346,7 @@ async def voice_message_handle(update: Update, context: CallbackContext):
 
 #启动新对话、获取用户名、使用的聊天模式
 async def new_dialog_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_exists(update, context,update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
 
     user_id = update.message.from_user.id

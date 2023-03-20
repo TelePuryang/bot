@@ -217,7 +217,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
           #进行流式传输时未得到回复出现错误提示用户
             db.set_user_attribute(user_id, "n_used_tokens", n_used_tokens + db.get_user_attribute(user_id, "n_used_tokens"))
         except Exception as e:
-            error_text = f"你还没有回复上条消息呢,原因: {e}"
+            error_text = f"从API中未获得响应,原因: {e}"
             logger.error(error_text)
             await update.message.reply_text(error_text)
             return

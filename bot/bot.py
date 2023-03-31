@@ -1,3 +1,5 @@
+
+
 #导入基本包
 import os
 import logging
@@ -39,6 +41,7 @@ import openai_utils
 db = database.Database()
 logger = logging.getLogger(__name__)
 user_semaphores = {}
+user_tasks = {}
 
 HELP_MESSAGE = """告诉我我要干嘛:
 ⚪ /retry – 重新回答这个问题
@@ -145,15 +148,19 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
     if await is_previous_message_not_answered_yet(update, context): return
 
     user_id = update.message.from_user.id
-    chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
+    async def message_handle_fn():
+        chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
 
-    async with user_semaphores[user_id]:
-          #消息对话超时自动生成新对话
+        # new dialog timeout
         if use_new_dialog_timeout:
             if (datetime.now() - db.get_user_attribute(user_id, "last_interaction")).seconds > config.new_dialog_timeout and len(db.get_dialog_messages(user_id)) > 0:
                 db.start_new_dialog(user_id)
-                await update.message.reply_text(f"超时开启新对话(<b>{openai_utils.CHAT_MODES[chat_mode]['name']}</b>模式) ", parse_mode=ParseMode.HTML)
+                await update.message.reply_text(f"超时开启新对话(<b>{openai_utils.CHAT_MODES[chat_mode]['name']}</b> 模式)", parse_mode=ParseMode.HTML)
         db.set_user_attribute(user_id, "last_interaction", datetime.now())
+
+        # in case of CancelledError
+        n_input_tokens, n_output_tokens = 0, 0
+        current_model = db.get_user_attribute(user_id, "current_model")
 
 
 
@@ -165,12 +172,10 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
             # 发送输入动作
             await update.message.chat.send_action(action="typing")
 
-            message = message or update.message.text
+            _message = message or update.message.text
 
-            current_model = db.get_user_attribute(user_id, "current_model")
+            # current_model = db.get_user_attribute(user_id, "current_model")
 #新添内容
-
-
 
             dialog_messages = db.get_dialog_messages(user_id, dialog_id=None)
             parse_mode = {
@@ -232,6 +237,12 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
              #进行流式传输时未得到回复出现错误提示用户
             db.update_n_used_tokens(user_id, current_model, n_input_tokens, n_output_tokens)
+        
+        except asyncio.CancelledError:
+            # 注意:中间令牌更新仅在enable_message_streaming=True时有效(config.yml)
+            db.update_n_used_tokens(user_id, current_model, n_input_tokens, n_output_tokens)
+            raise
+
         except Exception as e:
             error_text = f"从API中未获得响应,原因:  {e}"
             logger.error(error_text)
@@ -246,8 +257,22 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 text = f"✍️ <i>Note:</i>  你目前的对话太久了,因此此次对话的<b>{n_first_dialog_messages_removed} 第一条</b> 被移除. \n 发送 /new 命令开始新对话"
             await update.message.reply_text(text, parse_mode=ParseMode.HTML)
      #当信息从文本移除时发送提示消息给用户告知对方第一条消息被移除
+    
+    #新增的功能 取消登录
+    async with user_semaphores[user_id]:
+        task = asyncio.create_task(message_handle_fn())
+        user_tasks[user_id] = task
 
-
+        try:
+            await task
+        except asyncio.CancelledError:
+            await update.message.reply_text("✅ 已取消", parse_mode=ParseMode.HTML)
+        else:
+            pass
+        finally:
+            if user_id in user_tasks:
+                del user_tasks[user_id]
+    #新增的功能 取消登录
 #当用户发送的消息未得到相应时回复
 #如果该用户的信号量已经被锁定（即在先前的消息尚未被响应之前），则该函数将向用户发送一条提示消息，并返回True。 否则，函数将返回False，表示该用户可以发送一条新消息。
 async def is_previous_message_not_answered_yet(update: Update, context: CallbackContext):
@@ -256,6 +281,7 @@ async def is_previous_message_not_answered_yet(update: Update, context: Callback
     user_id = update.message.from_user.id
     if user_semaphores[user_id].locked():
         text = "⏳请<b>等待</b> 一个当前信息的回复"
+        text += "或者发送<b>/cancel</b>取消本次请求"  #新增内容
         await update.message.reply_text(text, reply_to_message_id=update.message.id, parse_mode=ParseMode.HTML)
         return True
     else:
@@ -312,6 +338,21 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
     await update.message.reply_text(f"{openai_utils.CHAT_MODES[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML)
 #启动新对话、获取用户名、使用的聊天模式
+
+#新增内容
+#取消菜单
+async def cancel_handle(update: Update, context: CallbackContext):
+    await register_user_if_not_exists(update, context, update.message.from_user)
+
+    user_id = update.message.from_user.id
+    db.set_user_attribute(user_id, "last_interaction", datetime.now())
+
+    if user_id in user_tasks:
+        task = user_tasks[user_id]
+        task.cancel()
+    else:
+        await update.message.reply_text("<i>没有什么内容可以被取消...</i>", parse_mode=ParseMode.HTML)
+#取消菜单
 
 
 #展示模式内容
@@ -421,7 +462,7 @@ async def show_balance_handle(update: Update, context: CallbackContext):
     n_used_tokens_dict = db.get_user_attribute(user_id, "n_used_tokens")
     n_transcribed_seconds = db.get_user_attribute(user_id, "n_transcribed_seconds")
 
-    details_text = "🏷️ 细节:\n"
+    details_text = "🏷️ 细节\n"
     for model_key in sorted(n_used_tokens_dict.keys()):
         n_input_tokens, n_output_tokens = n_used_tokens_dict[model_key]["n_input_tokens"], n_used_tokens_dict[model_key]["n_output_tokens"]
         total_n_used_tokens += n_input_tokens + n_output_tokens
@@ -440,7 +481,7 @@ async def show_balance_handle(update: Update, context: CallbackContext):
 
     text = f"你花费了<b>{total_n_spent_dollars:.03f}$</b>\n"
     text += f"你使用了<b>{total_n_used_tokens}</b> tokens\n\n"
-    text += f"（不用担心，所有花费都是走的翼臣哥哥银行卡😊）\n\n"
+    text += f"（不用担心，所有花费都是走的翼臣哥哥的银行卡😊）\n\n"
     text += details_text
 
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
@@ -515,6 +556,7 @@ def run_bot() -> None:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & user_filter, message_handle))
     application.add_handler(CommandHandler("retry", retry_handle, filters=user_filter))
     application.add_handler(CommandHandler("new", new_dialog_handle, filters=user_filter))
+    application.add_handler(CommandHandler("cancel", cancel_handle, filters=user_filter))
 
     application.add_handler(MessageHandler(filters.VOICE & user_filter, voice_message_handle))
 

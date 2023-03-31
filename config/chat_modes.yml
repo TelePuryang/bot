@@ -1,6 +1,6 @@
 assistant:
   name: 通用
-  welcome_message: 好了，<b>宝贝儿</b>,能帮你什么？
+  welcome_message: 👩🏼‍🎓好了，<b>宝贝儿</b>,能帮你什么？
   prompt_start: |
     
   parse_mode: html

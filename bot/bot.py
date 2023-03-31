@@ -185,10 +185,10 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
 
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
             if config.enable_message_streaming:
-                gen = chatgpt_instance.send_message_stream(message, dialog_messages=dialog_messages, chat_mode=chat_mode)
+                gen = chatgpt_instance.send_message_stream(_message, dialog_messages=dialog_messages, chat_mode=chat_mode)
             else:
                 answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = await chatgpt_instance.send_message(
-                    message,
+                    _message,
                     dialog_messages=dialog_messages,
                     chat_mode=chat_mode
                 )
@@ -200,15 +200,11 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
              #将信息发送给用户
             prev_answer = ""
             async for gen_item in gen:
-                status = gen_item[0]
-                if status == "not_finished":
-                    status, answer = gen_item
-                elif status == "finished":
-                    status, answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = gen_item
-                else:
-                    raise ValueError(f"流式传输 {status}状态未知")
+                status, answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = gen_item
 
-                answer = answer[:4096]  # 电报本身的消息文本字数限制
+                answer = answer[:4096]  # telegram message limit
+
+                # update only when 100 new symbols are ready
 
                 # 仅当100个新符号准备就绪时更新
 
@@ -462,7 +458,7 @@ async def show_balance_handle(update: Update, context: CallbackContext):
     n_used_tokens_dict = db.get_user_attribute(user_id, "n_used_tokens")
     n_transcribed_seconds = db.get_user_attribute(user_id, "n_transcribed_seconds")
 
-    details_text = "🏷️ 细节\n"
+    details_text = "🏷️ 细节:\n"
     for model_key in sorted(n_used_tokens_dict.keys()):
         n_input_tokens, n_output_tokens = n_used_tokens_dict[model_key]["n_input_tokens"], n_used_tokens_dict[model_key]["n_output_tokens"]
         total_n_used_tokens += n_input_tokens + n_output_tokens

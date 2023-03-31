@@ -1,0 +1,11 @@
+telegram_token: "6093827685:AAGkGeEvdg7UKVLMiQ5mAsPQhWwzs6rlXZE"
+openai_api_key: "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"
+use_chatgpt_api: true
+allowed_telegram_usernames: []  # if empty, the bot is available to anyone. pass a username string to allow it and/or user ids as integers
+new_dialog_timeout: 600  # new dialog starts after timeout (in seconds)
+enable_message_streaming: true  # 流式传输
+
+# 价格
+chatgpt_price_per_1000_tokens: 0.002
+gpt_price_per_1000_tokens: 0.02
+whisper_price_per_1_min: 0.006

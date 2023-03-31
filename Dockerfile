@@ -8,7 +8,6 @@ ENV PIP_NO_CACHE_DIR=off
 ENV PIP_DISABLE_PIP_VERSION_CHECK=on
 ENV PIP_DEFAULT_TIMEOUT=100
 
-RUN apt-get install -y gnupg2
 RUN apt-get update
 RUN apt-get install -y python3 python3-pip python-dev build-essential python3-venv ffmpeg
 

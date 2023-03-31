@@ -4,7 +4,7 @@ info:
   gpt-3.5-turbo:
     type: chat_completion
     name: ChatGPT
-    description: ChatGPT is that well-known model. It's <b>fast</b> and <b>cheap</b>. Ideal for everyday tasks. If there are some tasks it can't handle, try the <b>GPT-4</b>.
+    description: ChatGPT模式适用大部分日常使用场景,如果一些情况它无法处理,请把<b>GPT-4</b>叫出来帮忙
 
     price_per_1000_input_tokens: 0.002
     price_per_1000_output_tokens: 0.002
@@ -17,7 +17,7 @@ info:
   gpt-4:
     type: chat_completion
     name: GPT-4
-    description: GPT-4 is the <b>smartest</b> and most advanced model in the world. But it is slower and not as cost-efficient as ChatGPT. Best choice for <b>complex</b> intellectual tasks.
+    description: GPT-4是目前世界上最智能、最先进的型号。但它速度较慢,而且成本效益不如ChatGPT。他是<b>复杂</b>智力任务的最佳选择。
 
     price_per_1000_input_tokens: 0.03
     price_per_1000_output_tokens: 0.06
@@ -30,7 +30,7 @@ info:
   text-davinci-003:
     type: completion
     name: GPT-3.5
-    description: GPT-3.5 is a legacy model. Actually there is <b>no reason to use it</b>, because it is more expensive and slower than ChatGPT, but just about as smart.
+    description: 遗留淘汰的备选模型。
 
     price_per_1000_input_tokens: 0.02
     price_per_1000_output_tokens: 0.02

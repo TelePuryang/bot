@@ -1,3 +1,4 @@
+#导入基本包
 import os
 import logging
 import asyncio
@@ -39,13 +40,13 @@ db = database.Database()
 logger = logging.getLogger(__name__)
 user_semaphores = {}
 
-HELP_MESSAGE = """Commands:
-⚪ /retry – Regenerate last bot answer
-⚪ /new – Start new dialog
-⚪ /mode – Select chat mode
-⚪ /settings – Show settings
-⚪ /balance – Show balance
-⚪ /help – Show help
+HELP_MESSAGE = """告诉我我要干嘛:
+⚪ /retry – 重新回答这个问题
+⚪ /new – 我要开始新对话
+⚪ /mode – 选择模式专注于
+⚪ /settings – 我要设置你
+⚪ /balance – 我花了多少钱
+⚪ /help – 我需要帮助
 """
 
 
@@ -97,21 +98,24 @@ async def start_handle(update: Update, context: CallbackContext):
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
     db.start_new_dialog(user_id)
 
-    reply_text = "Hi! I'm <b>ChatGPT</b> bot implemented with GPT-3.5 OpenAI API 🤖\n\n"
+    reply_text = "你好，我是基于GPT-3.5 OpenAI API的<b>ChatGPT</b> 机器人，我是翼 🤖\n\n"
     reply_text += HELP_MESSAGE
 
-    reply_text += "\nAnd now... ask me anything!"
+    reply_text += "\n现在...问我任何事！"
 
     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
+#欢迎内容
 
-
+#帮助指令
 async def help_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
     await update.message.reply_text(HELP_MESSAGE, parse_mode=ParseMode.HTML)
+#帮助指令
 
 
+#重试指令
 async def retry_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
@@ -121,15 +125,16 @@ async def retry_handle(update: Update, context: CallbackContext):
 
     dialog_messages = db.get_dialog_messages(user_id, dialog_id=None)
     if len(dialog_messages) == 0:
-        await update.message.reply_text("No message to retry 🤷‍♂️")
+        await update.message.reply_text("你还没有发消息呢")
         return
 
     last_dialog_message = dialog_messages.pop()
     db.set_dialog_messages(user_id, dialog_messages, dialog_id=None)  # last message was removed from the context
 
     await message_handle(update, context, message=last_dialog_message["user"], use_new_dialog_timeout=False)
+##重试指令
 
-
+#消息处理
 async def message_handle(update: Update, context: CallbackContext, message=None, use_new_dialog_timeout=True):
     # check if message is edited
     if update.edited_message is not None:
@@ -143,23 +148,30 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
     chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
 
     async with user_semaphores[user_id]:
-        # new dialog timeout
+          #消息对话超时自动生成新对话
         if use_new_dialog_timeout:
             if (datetime.now() - db.get_user_attribute(user_id, "last_interaction")).seconds > config.new_dialog_timeout and len(db.get_dialog_messages(user_id)) > 0:
                 db.start_new_dialog(user_id)
-                await update.message.reply_text(f"Starting new dialog due to timeout (<b>{openai_utils.CHAT_MODES[chat_mode]['name']}</b> mode) ✅", parse_mode=ParseMode.HTML)
+                await update.message.reply_text(f"超时开启新对话(<b>{openai_utils.CHAT_MODES[chat_mode]['name']}</b>模式) ", parse_mode=ParseMode.HTML)
         db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
+
+
+#新添内容
         try:
-            # send placeholder message to user
+            # 发送占位符消息给用户
             placeholder_message = await update.message.reply_text("...")
 
-            # send typing action
+            # 发送输入动作
             await update.message.chat.send_action(action="typing")
 
             message = message or update.message.text
 
             current_model = db.get_user_attribute(user_id, "current_model")
+#新添内容
+
+
+
             dialog_messages = db.get_dialog_messages(user_id, dialog_id=None)
             parse_mode = {
                 "html": ParseMode.HTML,
@@ -180,7 +192,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                     yield "finished", answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed
 
                 gen = fake_gen()
-
+             #将信息发送给用户
             prev_answer = ""
             async for gen_item in gen:
                 status = gen_item[0]
@@ -189,11 +201,12 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 elif status == "finished":
                     status, answer, (n_input_tokens, n_output_tokens), n_first_dialog_messages_removed = gen_item
                 else:
-                    raise ValueError(f"Streaming status {status} is unknown")
+                    raise ValueError(f"流式传输 {status}状态未知")
 
-                answer = answer[:4096]  # telegram message limit
+                answer = answer[:4096]  # 电报本身的消息文本字数限制
 
-                # update only when 100 new symbols are ready
+                # 仅当100个新符号准备就绪时更新
+
                 if abs(len(answer) - len(prev_answer)) < 100 and status != "finished":
                     continue
 
@@ -205,11 +218,11 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                     else:
                         await context.bot.edit_message_text(answer, chat_id=placeholder_message.chat_id, message_id=placeholder_message.message_id)
 
-                await asyncio.sleep(0.01)  # wait a bit to avoid flooding
+                await asyncio.sleep(0.01) # 等待一会而避免flooding
 
                 prev_answer = answer
 
-            # update user data
+            # 更新用户数据
             new_dialog_message = {"user": message, "bot": answer, "date": datetime.now()}
             db.set_dialog_messages(
                 user_id,
@@ -217,34 +230,40 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
                 dialog_id=None
             )
 
+             #进行流式传输时未得到回复出现错误提示用户
             db.update_n_used_tokens(user_id, current_model, n_input_tokens, n_output_tokens)
         except Exception as e:
-            error_text = f"Something went wrong during completion. Reason: {e}"
+            error_text = f"从API中未获得响应,原因:  {e}"
             logger.error(error_text)
             await update.message.reply_text(error_text)
             return
 
-        # send message if some messages were removed from the context
+    #当信息从文本移除时发送提示消息给用户告知对方第一条消息被移除
         if n_first_dialog_messages_removed > 0:
             if n_first_dialog_messages_removed == 1:
-                text = "✍️ <i>Note:</i> Your current dialog is too long, so your <b>first message</b> was removed from the context.\n Send /new command to start new dialog"
+                text = "✍️ <i>Note:</i> 你目前的对话太久了,因此你的<b>第一条消息</b> 从对话记录中被移除\n 发送 /new 命令创建新对话"
             else:
-                text = f"✍️ <i>Note:</i> Your current dialog is too long, so <b>{n_first_dialog_messages_removed} first messages</b> were removed from the context.\n Send /new command to start new dialog"
+                text = f"✍️ <i>Note:</i>  你目前的对话太久了,因此此次对话的<b>{n_first_dialog_messages_removed} 第一条</b> 被移除. \n 发送 /new 命令开始新对话"
             await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+     #当信息从文本移除时发送提示消息给用户告知对方第一条消息被移除
 
 
+#当用户发送的消息未得到相应时回复
+#如果该用户的信号量已经被锁定（即在先前的消息尚未被响应之前），则该函数将向用户发送一条提示消息，并返回True。 否则，函数将返回False，表示该用户可以发送一条新消息。
 async def is_previous_message_not_answered_yet(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     user_id = update.message.from_user.id
     if user_semaphores[user_id].locked():
-        text = "⏳ Please <b>wait</b> for a reply to the previous message"
+        text = "⏳请<b>等待</b> 一个当前信息的回复"
         await update.message.reply_text(text, reply_to_message_id=update.message.id, parse_mode=ParseMode.HTML)
         return True
     else:
         return False
+#当用户发送的消息未得到相应时回复
 
 
+#声音消息处理
 async def voice_message_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
@@ -276,8 +295,10 @@ async def voice_message_handle(update: Update, context: CallbackContext):
     db.set_user_attribute(user_id, "n_transcribed_seconds", voice.duration + db.get_user_attribute(user_id, "n_transcribed_seconds"))
 
     await message_handle(update, context, message=transcribed_text)
+#声音消息处理
 
 
+#启动新对话、获取用户名、使用的聊天模式
 async def new_dialog_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
@@ -286,12 +307,14 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
     db.start_new_dialog(user_id)
-    await update.message.reply_text("Starting new dialog ✅")
+    await update.message.reply_text("开始新对话 ✅")
 
     chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
     await update.message.reply_text(f"{openai_utils.CHAT_MODES[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML)
+#启动新对话、获取用户名、使用的聊天模式
 
 
+#展示模式内容
 async def show_chat_modes_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context): return
@@ -304,9 +327,11 @@ async def show_chat_modes_handle(update: Update, context: CallbackContext):
         keyboard.append([InlineKeyboardButton(chat_mode_dict["name"], callback_data=f"set_chat_mode|{chat_mode}")])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("Select chat mode:", reply_markup=reply_markup)
+    await update.message.reply_text("选择一个模式", reply_markup=reply_markup)
+#展示模式内容
 
 
+#设置模式
 async def set_chat_mode_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.callback_query, context, update.callback_query.from_user)
     user_id = update.callback_query.from_user.id
@@ -320,8 +345,10 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
     db.start_new_dialog(user_id)
 
     await query.edit_message_text(f"{openai_utils.CHAT_MODES[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML)
+#设置模式
 
-
+#新添内容 3.24日
+#设置菜单
 def get_settings_menu(user_id: int):
     current_model = db.get_user_attribute(user_id, "current_model")
     text = config.models["info"][current_model]["description"]
@@ -331,7 +358,7 @@ def get_settings_menu(user_id: int):
     for score_key, score_value in score_dict.items():
         text += "🟢" * score_value + "⚪️" * (5 - score_value) + f" – {score_key}\n\n"
 
-    text += "\nSelect <b>model</b>:"
+    text += "\n选择<b>模型</b>:"
 
     # buttons to choose models
     buttons = []
@@ -374,10 +401,13 @@ async def set_settings_handle(update: Update, context: CallbackContext):
     try:
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
     except telegram.error.BadRequest as e:
-        if str(e).startswith("Message is not modified"):
+        if str(e).startswith("消息未被修改"):
             pass
 
+#设置模型菜单
+#新添内容
 
+#余额设置
 async def show_balance_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
 
@@ -391,7 +421,7 @@ async def show_balance_handle(update: Update, context: CallbackContext):
     n_used_tokens_dict = db.get_user_attribute(user_id, "n_used_tokens")
     n_transcribed_seconds = db.get_user_attribute(user_id, "n_transcribed_seconds")
 
-    details_text = "🏷️ Details:\n"
+    details_text = "🏷️ 细节:\n"
     for model_key in sorted(n_used_tokens_dict.keys()):
         n_input_tokens, n_output_tokens = n_used_tokens_dict[model_key]["n_input_tokens"], n_used_tokens_dict[model_key]["n_output_tokens"]
         total_n_used_tokens += n_input_tokens + n_output_tokens
@@ -408,18 +438,22 @@ async def show_balance_handle(update: Update, context: CallbackContext):
 
     total_n_spent_dollars += voice_recognition_n_spent_dollars
 
-    text = f"You spent <b>{total_n_spent_dollars:.03f}$</b>\n"
-    text += f"You used <b>{total_n_used_tokens}</b> tokens\n\n"
+    text = f"你花费了<b>{total_n_spent_dollars:.03f}$</b>\n"
+    text += f"你使用了<b>{total_n_used_tokens}</b> tokens\n\n"
+    text += f"（不用担心，所有花费都是走的翼臣哥哥银行卡😊）\n\n"
     text += details_text
 
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+#余额菜单
 
-
+#编辑后的消息文本设置反馈
 async def edited_message_handle(update: Update, context: CallbackContext):
-    text = "🥲 Unfortunately, message <b>editing</b> is not supported"
+    text = "🥲sorry啦, <b>编辑</b> 后不支持,你需要重新发送新的内容而不是编辑旧内容。"
     await update.edited_message.reply_text(text, parse_mode=ParseMode.HTML)
+#编辑后的消息文本设置反馈
 
 
+#菜单错误报错
 async def error_handle(update: Update, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
@@ -444,16 +478,19 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
                 await context.bot.send_message(update.effective_chat.id, message_chunk)
     except:
         await context.bot.send_message(update.effective_chat.id, "Some error in error handler")
+#错误菜单
+
 
 async def post_init(application: Application):
     await application.bot.set_my_commands([
-        BotCommand("/new", "Start new dialog"),
-        BotCommand("/mode", "Select chat mode"),
-        BotCommand("/retry", "Re-generate response for previous query"),
-        BotCommand("/balance", "Show balance"),
-        BotCommand("/settings", "Show settings"),
-        BotCommand("/help", "Show help message"),
+        BotCommand("/new", "我要开始新对话"),
+        BotCommand("/mode", "我要选择模式"),
+        BotCommand("/retry", "重新回答这个问题"),
+        BotCommand("/balance", "我花费了"),
+        BotCommand("/settings", "我要设置你"),
+        BotCommand("/help", "我需要帮助"),
     ])
+    #机器人菜单界面
 
 def run_bot() -> None:
     application = (
@@ -465,7 +502,7 @@ def run_bot() -> None:
         .build()
     )
 
-    # add handlers
+  # 对应菜单指令的处理程序
     user_filter = filters.ALL
     if len(config.allowed_telegram_usernames) > 0:
         usernames = [x for x in config.allowed_telegram_usernames if isinstance(x, str)]
@@ -491,7 +528,7 @@ def run_bot() -> None:
 
     application.add_error_handler(error_handle)
 
-    # start the bot
+    # 启动
     application.run_polling()
 
 

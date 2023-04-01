@@ -149,7 +149,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
         if use_new_dialog_timeout:
             if (datetime.now() - db.get_user_attribute(user_id, "last_interaction")).seconds > config.new_dialog_timeout and len(db.get_dialog_messages(user_id)) > 0:
                 db.start_new_dialog(user_id)
-                await update.message.reply_text(f"超时开启新对话(<b>{openai_utils.CHAT_MODES[chat_mode]['name']}</b> mode) ✅", parse_mode=ParseMode.HTML)
+                await update.message.reply_text(f"超时开启新对话(<b>{openai_utils.CHAT_MODES[chat_mode]['name']}</b> 模式) ✅", parse_mode=ParseMode.HTML)
         db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
         # in case of CancelledError
@@ -232,9 +232,9 @@ async def message_handle(update: Update, context: CallbackContext, message=None,
         # send message if some messages were removed from the context
         if n_first_dialog_messages_removed > 0:
             if n_first_dialog_messages_removed == 1:
-                text = "对话太多， <b>第一条消息</b> 被移除.\n 发送 /new 命令开启新对话"
+                text = "对话太长， <b>旧消息</b> 被我遗忘，你仍然可以继续此话题，\n 或者发送 /new 命令开启新的对话。"
             else:
-                text = f"对话太长，<b>{n_first_dialog_messages_removed} 第一条信息</b> 被移除.\n 发送 /new 命令开启新对话"
+                text = f"对话太长，<b>{n_first_dialog_messages_removed} 旧消息</b> 被我遗忘，你仍然可以继续此话题，\n 或者发送 /new 命令开启新的对话。"
             await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
     async with user_semaphores[user_id]:

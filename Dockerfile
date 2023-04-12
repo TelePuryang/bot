@@ -10,7 +10,7 @@ ENV PIP_DEFAULT_TIMEOUT=100
 
 RUN apt-get update
 RUN apt-get install -y python3 python3-pip python-dev build-essential python3-venv ffmpeg
-
+RUN apt install vim
 
 RUN mkdir -p /code
 ADD . /code

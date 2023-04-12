@@ -1,4 +1,4 @@
-![logo](hello.png){400x300}
+<img src="hello.png" alt="#" width="300" >
 ## 在国外vps能够正常构建并使用。国内网络环境有点问题
 ## 安装
 1. 获取[OpenAI API](https://openai.com/api/) 

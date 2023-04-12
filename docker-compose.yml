@@ -8,7 +8,7 @@ services:
     ports:
       - ${MONGODB_PORT:-27017}:${MONGODB_PORT:-27017}
     volumes:
-      - ${MONGODB_PATH:-./mongodb}:/data/db
+      - /root/mongodbdata:/data/db
     # TODO: add auth
 
   chatgpt_telegram_bot:

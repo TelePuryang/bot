@@ -34,8 +34,8 @@
 
 
 ## 通过Docker构建镜像
-    ```bash
+```bash
     docker-compose --env-file config/config.env up --build
-    ```
+```
 
 

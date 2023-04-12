@@ -33,9 +33,10 @@
 
 
 
-## 通过Docker构建镜像
+## 通过Docker-compose构建容器集群
 ```bash
     docker-compose --env-file config/config.env up --build
 ```
 
 
+##完成！

@@ -15,8 +15,6 @@ services:
     container_name: chatgpt_telegram_bot
     command: python3 bot/bot.py
     restart: always
-    volumes:
-      - ./botbotbotdata:/code
     build:
       context: "."
       dockerfile: Dockerfile
